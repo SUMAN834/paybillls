@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pay Bills with MetaMask on Polygon (Matic) Testnet</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    form {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4caf50;
+      color: #fff;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .success, .error {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+    }
+    .error {
+      background-color: #f2dede;
+      color: #a94442;
+    }
+    #qr-reader {
+      width: 100%;
+      max-width: 300px;
+      margin-top: 20px;
+    }
+    /* Additional styles for tick symbol */
+    #tick-symbol {
+      color: #4CAF50;
+      font-size: 36px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <form id="paymentForm">
+    <label for="recipientAddress">Recipient Address:</label>
+    <input type="text" id="recipientAddress" name="recipientAddress" required>
+
+    <label for="amount">Amount (MATIC):</label>
+    <input type="number" id="amount" name="amount" min="0.1" step="0.1" required>
+
+    <button type="button" onclick="requestPayment()">Pay Bills</button>
+
+    <div id="qr-reader"></div>
+
+    <div id="result" class="hidden">
+      <span id="tick-symbol">✔</span>
+      <span id="result-message"></span>
+    </div>
+  </form>
+
+  <!-- Include web3.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.3.6/web3.min.js"></script>
+
+  <!-- Include html5-qrcode from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.0.1/dist/html5-qrcode.min.js"></script>
+
+  <script>
+    async function requestPayment() {
+      // Check if MetaMask is installed
+      if (typeof window.ethereum === 'undefined') {
+        alert('MetaMask not detected. Please install it to proceed.');
+        return;
+      }
+
+      // Initialize web3
+      const web3 = new Web3(window.ethereum);
+
+      try {
+        // Request account access from the user
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const account = accounts[0];
+
+        // Get input values
+        const recipientAddress = document.getElementById('recipientAddress').value;
+        const amount = document.getElementById('amount').value;
+
+        // Send a transaction
+        const transactionHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [
+            {
+              from: account,
+              to: recipientAddress,
+              value: web3.utils.toWei(amount, 'ether'),
+            },
+          ],
+        });
+
+        // Display success message with tick symbol
+        displayResult(`Payment processed successfully! Transaction hash: ${transactionHash}`, 'success');
+
+        // Delay and then redirect to the next page (adjust the time as needed)
+        setTimeout(() => {               
+          window.location.href = 'next-page.html';
+        }, 3000); // Redirect after 3 seconds
+      } catch (error) {
+        console.error('Error processing payment:', error);
+        // Display error message
+        displayResult('Error processing payment. Please check the console for details.', 'error');
+      }
+    }
+
+    function displayResult(message, className) {
+      const resultDiv = document.getElementById('result');
+      const tickSymbol = document.getElementById('tick-symbol');
+      const resultMessage = document.getElementById('result-message');
+
+      resultMessage.innerHTML = message;
+      resultDiv.className = className;
+      resultDiv.classList.remove('hidden');
+
+      if (className === 'success') {
+        // Show tick symbol on success
+        tickSymbol.style.display = 'inline-block';
+      }
+    }
+
+    // QR Code Scanner
+    const qrReader = new Html5Qrcode('qr-reader');
+
+    function onQRCodeScanned(qrCodeMessage) {
+      // Set the scanned QR code message to the recipient address input
+      document.getElementById('recipientAddress').value = qrCodeMessage;
+    }
+
+    qrReader.start({ facingMode: 'environment' }, { fps: 10, qrbox: 250 }, onQRCodeScanned);
+
+    // Stop QR Code Scanner when the form is submitted
+    document.getElementById('paymentForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      qrReader.stop().then(ignore => {
+        console.log('QR Code scanner stopped');
+      }).catch(err => {
+        console.error('Error stopping QR Code scanner:', err);
+      });
+      requestPayment();   
+    });
+  </script>
+</body>
+</html>
